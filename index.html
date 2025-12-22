@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ludo King Lite</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Ludo King Lite</h1>
+    <p>Child-friendly, offline play with optional bots.</p>
+  </header>
+
+  <main>
+    <section class="board-wrapper">
+      <canvas id="board" width="720" height="720" aria-label="Ludo board"></canvas>
+      <div class="status">
+        <div id="turn-indicator"></div>
+        <div class="dice-panel">
+          <button id="roll" aria-label="Roll the die">Roll 🎲</button>
+          <span id="dice-value" aria-live="polite">-</span>
+        </div>
+        <div class="actions">
+          <button id="new-game">New Game</button>
+          <label><input type="checkbox" id="sound-toggle" checked /> Sound</label>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls">
+      <h2>Players</h2>
+      <div id="player-list" class="player-list"></div>
+      <div class="control-row">
+        <label for="bot-count">Robots:</label>
+        <select id="bot-count">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label for="human-count">Humans:</label>
+        <select id="human-count">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+      </div>
+      <p class="helper">Humans share the same screen. Bots roll automatically, and at least two players are always added.</p>
+      <div class="legend" aria-label="Color legend">
+        <div class="chip red">Red</div>
+        <div class="chip green">Green</div>
+        <div class="chip yellow">Yellow</div>
+        <div class="chip blue">Blue</div>
+      </div>
+    </section>
+  </main>
+
+  <section class="rules">
+    <h2>Quick rules</h2>
+    <ul>
+      <li>Roll a 6 to bring a token out of the yard.</li>
+      <li>Roll again on a 6. Capture opponents by landing on them.</li>
+      <li>Finish all tokens in the center to win.</li>
+    </ul>
+  </section>
+
+  <script src="main.js"></script>
+</body>
+</html>
