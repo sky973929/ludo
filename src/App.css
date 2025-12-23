@@ -154,6 +154,31 @@ canvas {
   max-width: 100%;
 }
 
+.game-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.status-text {
+  color: #475569;
+  margin: 4px 0;
+}
+
+.move-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.move-list button {
+  width: 100%;
+  text-align: left;
+}
+
 .player-summary {
   display: flex;
   gap: 8px;

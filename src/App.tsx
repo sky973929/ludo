@@ -8,8 +8,8 @@ type Page = 'home' | 'game';
 function App() {
   const [page, setPage] = useState<Page>('home');
   const [players, setPlayers] = useState<PlayerConfig[]>([
-    { name: 'Player 1', type: 'human', color: '#e63946' },
-    { name: 'Player 2', type: 'ai', color: '#457b9d' },
+    { name: 'Player 1', type: 'human', color: 'red' },
+    { name: 'Player 2', type: 'ai', color: 'green' },
   ]);
 
   const activeContent = useMemo(() => {

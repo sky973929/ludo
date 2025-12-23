@@ -1,11 +1,12 @@
 import { ChangeEvent } from 'react';
+import type { Color } from '../game/model';
 
 export type PlayerType = 'human' | 'ai';
 
 export interface PlayerConfig {
   name: string;
   type: PlayerType;
-  color: string;
+  color: Color;
 }
 
 interface HomePageProps {
@@ -15,6 +16,13 @@ interface HomePageProps {
 }
 
 function HomePage({ players, onPlayersChange, onStart }: HomePageProps) {
+  const colorOptions: { value: Color; label: string }[] = [
+    { value: 'red', label: 'Red' },
+    { value: 'green', label: 'Green' },
+    { value: 'yellow', label: 'Yellow' },
+    { value: 'blue', label: 'Blue' },
+  ];
+
   const handleFieldChange = (
     index: number,
     field: keyof PlayerConfig,
@@ -27,12 +35,15 @@ function HomePage({ players, onPlayersChange, onStart }: HomePageProps) {
   };
 
   const addPlayer = () => {
+    const usedColors = new Set(players.map((player) => player.color));
+    const nextColor = colorOptions.find((option) => !usedColors.has(option.value))?.value ?? 'red';
+
     onPlayersChange([
       ...players,
       {
         name: `Player ${players.length + 1}`,
         type: 'human',
-        color: '#2a9d8f',
+        color: nextColor,
       },
     ]);
   };
@@ -53,7 +64,12 @@ function HomePage({ players, onPlayersChange, onStart }: HomePageProps) {
           <h2>Home</h2>
           <p>Configure human or AI players before starting a match.</p>
         </div>
-        <button type="button" onClick={addPlayer} className="secondary">
+        <button
+          type="button"
+          onClick={addPlayer}
+          className="secondary"
+          disabled={players.length >= colorOptions.length}
+        >
           + Add player
         </button>
       </div>
@@ -81,12 +97,22 @@ function HomePage({ players, onPlayersChange, onStart }: HomePageProps) {
             </div>
             <div className="field">
               <label htmlFor={`color-${index}`}>Color</label>
-              <input
+              <select
                 id={`color-${index}`}
-                type="color"
                 value={player.color}
                 onChange={(event) => handleFieldChange(index, 'color', event.target.value)}
-              />
+              >
+                {colorOptions.map((option) => {
+                  const usedByOther = players.some(
+                    (p, i) => i !== index && p.color === option.value,
+                  );
+                  return (
+                    <option key={option.value} value={option.value} disabled={usedByOther}>
+                      {option.label}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
             {players.length > 1 && (
               <button type="button" className="link" onClick={() => removePlayer(index)}>
@@ -97,7 +123,7 @@ function HomePage({ players, onPlayersChange, onStart }: HomePageProps) {
         ))}
       </div>
       <div className="actions">
-        <button type="button" className="primary" onClick={onStart}>
+        <button type="button" className="primary" onClick={onStart} disabled={players.length === 0}>
           Start Game
         </button>
       </div>
