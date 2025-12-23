@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
-import {
-  applyMove,
-  getCurrentPlayer,
-  initGame,
-  prepareMoveState,
-} from '../game/rules';
+import { applyMove, getCurrentPlayer, initGame, prepareMoveState } from '../game/rules';
 import type { GameState, Move, Player } from '../game/model';
 import type { PlayerConfig } from './Home';
+import BoardCanvas from '../ui/canvas/BoardCanvas';
 
 interface GamePageProps {
   players: PlayerConfig[];
@@ -21,8 +17,6 @@ function formatPos(pos: Move['from']): string {
 }
 
 function GamePage({ players, onReset }: GamePageProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
   const playerModels = useMemo<Player[]>(
     () => players.map((player) => ({ color: player.color, kind: player.type })),
     [players],
@@ -30,60 +24,64 @@ function GamePage({ players, onReset }: GamePageProps) {
 
   const [state, setState] = useState<GameState>(() => initGame(playerModels));
   const [message, setMessage] = useState<string>('Roll to start');
+  const [showDebug, setShowDebug] = useState<boolean>(false);
 
   useEffect(() => {
     setState(initGame(playerModels));
     setMessage('Roll to start');
   }, [playerModels]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const context = canvas.getContext('2d');
-    if (!context) return;
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#f1f3f5';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    context.fillStyle = '#2b2d42';
-    context.font = 'bold 24px sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText('Board Placeholder', canvas.width / 2, canvas.height / 2);
-  }, [state]);
-
   const currentPlayer = getCurrentPlayer(state);
 
   const handleRoll = () => {
-    if (state.phase !== 'WAIT_ROLL') return;
-    if (state.players.length === 0) return;
+    setState((prev) => {
+      if (prev.phase !== 'WAIT_ROLL' || prev.players.length === 0) return prev;
+      const roll = Math.floor(Math.random() * 6) + 1;
+      const nextState = prepareMoveState(prev, roll);
 
-    const roll = Math.floor(Math.random() * 6) + 1;
-    const nextState = prepareMoveState(state, roll);
+      if (nextState.legalMoves.length === 0) {
+        const nextTurn = (prev.turnIndex + 1) % prev.players.length;
+        setMessage(`Rolled ${roll} but no moves; passing turn.`);
+        return {
+          ...prev,
+          turnIndex: nextTurn,
+          phase: 'WAIT_ROLL',
+          lastRoll: undefined,
+          legalMoves: [],
+        } satisfies GameState;
+      }
 
-    if (nextState.legalMoves.length === 0) {
-      const nextTurn = roll === 6 ? state.turnIndex : (state.turnIndex + 1) % state.players.length;
-      setState({
-        ...state,
-        turnIndex: nextTurn,
-        phase: 'WAIT_ROLL',
-        lastRoll: undefined,
-        legalMoves: [],
-      });
-      setMessage(`Rolled ${roll} but no moves; passing turn.`);
-      return;
-    }
-
-    setState(nextState);
-    setMessage(`Rolled ${roll}. Choose a move.`);
+      setMessage(`Rolled ${roll}. Choose a move.`);
+      return nextState;
+    });
   };
 
+  useEffect(() => {
+    if (state.phase === 'WAIT_MOVE' && state.legalMoves.length === 0) {
+      setState((prev) => {
+        if (prev.phase !== 'WAIT_MOVE' || prev.legalMoves.length !== 0 || prev.players.length === 0) {
+          return prev;
+        }
+        const nextTurn = (prev.turnIndex + 1) % prev.players.length;
+        setMessage('No moves available; passing turn.');
+        return {
+          ...prev,
+          turnIndex: nextTurn,
+          phase: 'WAIT_ROLL',
+          lastRoll: undefined,
+          legalMoves: [],
+        } satisfies GameState;
+      });
+    }
+  }, [state.phase, state.legalMoves.length, state.lastRoll, state.players.length]);
+
   const handleMove = (move: Move) => {
-    const updated = applyMove(state, move);
-    setState(updated);
-    setMessage('Move applied. Roll again.');
+    setState((prev) => {
+      if (prev.phase !== 'WAIT_MOVE') return prev;
+      const updated = applyMove(prev, move);
+      setMessage('Move applied. Roll again.');
+      return updated;
+    });
   };
 
   const pieceSummary = state.players.flatMap((player) =>
@@ -99,7 +97,7 @@ function GamePage({ players, onReset }: GamePageProps) {
       <div className="panel-header">
         <div>
           <h2>Game</h2>
-          <p>Basic turn loop with a placeholder board.</p>
+          <p>Roll, click a highlighted piece, and advance the turn loop.</p>
         </div>
         <button type="button" className="secondary" onClick={onReset}>
           Back to Home
@@ -108,7 +106,9 @@ function GamePage({ players, onReset }: GamePageProps) {
 
       <div className="game-controls">
         <div>
-          <p>Current player: <strong>{currentPlayer.color}</strong></p>
+          <p>
+            Current player: <strong>{currentPlayer.color}</strong>
+          </p>
           {state.lastRoll && <p>Last roll: {state.lastRoll}</p>}
           <p className="status-text">{message}</p>
         </div>
@@ -123,17 +123,17 @@ function GamePage({ players, onReset }: GamePageProps) {
       </div>
 
       <div className="board-wrapper">
-        <canvas ref={canvasRef} width={640} height={640} />
+        <BoardCanvas state={state} onPickMove={handleMove} />
       </div>
 
-      <div className="move-list">
-        <h3>Legal Moves</h3>
+      <details className="move-list" open={showDebug} onToggle={(e) => setShowDebug((e.target as HTMLDetailsElement).open)}>
+        <summary className="debug-summary">Debug: Legal Moves</summary>
         {state.legalMoves.length === 0 ? (
           <p className="status-text">Roll the dice to see available moves.</p>
         ) : (
           <ul>
             {state.legalMoves.map((move) => (
-              <li key={move.pieceId}>
+              <li key={`${move.pieceId}-${formatPos(move.from)}`}>
                 <button type="button" onClick={() => handleMove(move)}>
                   {move.pieceId}: {formatPos(move.from)} → {formatPos(move.to)}{' '}
                   {move.capture ? `(capture ${move.capture.pieceId})` : ''}
@@ -142,7 +142,7 @@ function GamePage({ players, onReset }: GamePageProps) {
             ))}
           </ul>
         )}
-      </div>
+      </details>
 
       <div className="player-summary">
         {pieceSummary.map((piece) => (

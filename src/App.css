@@ -179,6 +179,20 @@ canvas {
   text-align: left;
 }
 
+.move-list summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin: 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.move-list[open] summary {
+  margin-bottom: 8px;
+}
+
 .player-summary {
   display: flex;
   gap: 8px;
