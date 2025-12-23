@@ -148,6 +148,31 @@ select {
   justify-content: center;
 }
 
+.editor-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 360px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editor-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
 canvas {
   border-radius: 8px;
   border: 1px solid #cbd5e1;
@@ -220,4 +245,55 @@ canvas {
 
 .player-pill small {
   color: #6b7280;
+}
+
+textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.hover-readout {
+  margin-top: 8px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.counts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.count-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.count-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.count-pill .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.action-row {
+  flex-direction: row;
+  gap: 8px;
 }
