@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Color } from '../game/model';
+import type { Cell } from '../ui/canvas/gridGeometry';
 
 const GRID_SIZE = 15;
 const CANVAS_SIZE = 640;
-
-export type Cell = { row: number; col: number };
 
 type SelectionKey = 'track' | `home-${Color}` | `yard-${Color}`;
 
@@ -23,21 +22,23 @@ const COLOR_SWATCH: Record<Color, string> = {
   blue: '#3b82f6',
 };
 
-const INITIAL_DATA: BoardData = {
-  track: [],
-  home: {
-    red: [],
-    green: [],
-    yellow: [],
-    blue: [],
-  },
-  yard: {
-    red: [],
-    green: [],
-    yellow: [],
-    blue: [],
-  },
-};
+function createInitialData(): BoardData {
+  return {
+    track: [],
+    home: {
+      red: [],
+      green: [],
+      yellow: [],
+      blue: [],
+    },
+    yard: {
+      red: [],
+      green: [],
+      yellow: [],
+      blue: [],
+    },
+  };
+}
 
 function getList(data: BoardData, key: SelectionKey): Cell[] {
   if (key === 'track') return data.track;
@@ -96,8 +97,8 @@ function drawCells(
   ctx.textBaseline = 'middle';
   ctx.font = `${Math.max(10, cellSize * 0.35)}px sans-serif`;
   cells.forEach((cell, index) => {
-    const x = cell.col * cellSize;
-    const y = cell.row * cellSize;
+    const x = cell.c * cellSize;
+    const y = cell.r * cellSize;
     ctx.fillStyle = fill;
     ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
     ctx.fillStyle = textColor;
@@ -111,8 +112,8 @@ function drawHover(
   cellSize: number,
   color: string,
 ) {
-  const x = cell.col * cellSize;
-  const y = cell.row * cellSize;
+  const x = cell.c * cellSize;
+  const y = cell.r * cellSize;
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
@@ -132,7 +133,7 @@ const SECTION_LABELS: Record<SelectionKey, string> = {
 
 function BoardEditorPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [data, setData] = useState<BoardData>(INITIAL_DATA);
+  const [data, setData] = useState<BoardData>(() => createInitialData());
   const [selection, setSelection] = useState<SelectionKey>('track');
   const [hover, setHover] = useState<Cell | null>(null);
 
@@ -140,7 +141,7 @@ function BoardEditorPage() {
     () =>
       JSON.stringify(
         {
-          TRACK_CELLS: data.track,
+          TRACK_CELLS: data.track.map(({ r, c }) => ({ r, c })),
           HOME_CELLS: data.home,
           YARD_CELLS: data.yard,
         },
@@ -178,10 +179,10 @@ function BoardEditorPage() {
     const cellSize = canvas.width / GRID_SIZE;
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const col = Math.floor((x / rect.width) * GRID_SIZE);
-    const row = Math.floor((y / rect.height) * GRID_SIZE);
-    if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return null;
-    return { row, col };
+    const c = Math.floor((x / rect.width) * GRID_SIZE);
+    const r = Math.floor((y / rect.height) * GRID_SIZE);
+    if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return null;
+    return { r, c };
   };
 
   const handleClick: React.MouseEventHandler<HTMLCanvasElement> = (event) => {
@@ -189,7 +190,7 @@ function BoardEditorPage() {
     if (!cell) return;
     setData((prev) =>
       updateList(prev, selection, (list) => {
-        const exists = list.some((c) => c.row === cell.row && c.col === cell.col);
+        const exists = list.some((c) => c.r === cell.r && c.c === cell.c);
         if (exists) return list;
         return [...list, cell];
       }),
@@ -204,7 +205,7 @@ function BoardEditorPage() {
     setData((prev) => updateList(prev, selection, () => []));
   };
 
-  const handleClearAll = () => setData(INITIAL_DATA);
+  const handleClearAll = () => setData(createInitialData());
 
   const trackCount = data.track.length;
   const homeCount = COLORS.reduce<Record<Color, number>>((acc, color) => {
@@ -236,7 +237,7 @@ function BoardEditorPage() {
             onMouseLeave={() => setHover(null)}
           />
           <div className="hover-readout">
-            Hover: {hover ? `r${hover.row}, c${hover.col}` : '—'}
+            Hover: {hover ? `r${hover.r}, c${hover.c}` : '—'}
           </div>
         </div>
 
@@ -271,13 +272,13 @@ function BoardEditorPage() {
 
           <div className="counts">
             <div>
-              <strong>Track:</strong> {trackCount} / 52
+              <strong>Track:</strong> {trackCount} / 52 {trackCount === 52 ? '✅' : ''}
             </div>
             <div className="count-grid">
               {COLORS.map((color) => (
                 <div key={`home-${color}`} className="count-pill">
                   <span className="dot" style={{ background: COLOR_SWATCH[color] }} />
-                  Home {color}: {homeCount[color]} / 6
+                  Home {color}: {homeCount[color]} / 6 {homeCount[color] === 6 ? '✅' : ''}
                 </div>
               ))}
             </div>
@@ -285,7 +286,7 @@ function BoardEditorPage() {
               {COLORS.map((color) => (
                 <div key={`yard-${color}`} className="count-pill">
                   <span className="dot" style={{ background: COLOR_SWATCH[color] }} />
-                  Yard {color}: {yardCount[color]} / 4
+                  Yard {color}: {yardCount[color]} / 4 {yardCount[color] === 4 ? '✅' : ''}
                 </div>
               ))}
             </div>

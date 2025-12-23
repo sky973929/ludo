@@ -33,4 +33,5 @@ Then open the printed local URL (default: http://localhost:5173).
 - Styling uses simple CSS modules in `src/App.css` and `src/index.css`.
 - Implemented rules cover: entering the track on a six, advancing along the track and into home by exact count, safe squares, and capturing a lone opponent on unsafe track tiles. Multi-piece stacking/forts and AI are not implemented yet.
 - The Board Editor page (/board-editor tab) shows a 15x15 grid; click to append cells to the selected segment, undo/clear as needed, and copy the JSON output for use in a classic board layout.
+- Paste the captured arrays from the Board Editor into `src/ui/canvas/gridGeometry.ts` (`TRACK_CELLS`, `HOME_CELLS`, `YARD_CELLS`) to drive future 15x15 board rendering.
 - Next steps: refine the canvas visuals (grid-style board art) and add AI move selection.
