@@ -5,7 +5,7 @@ import { homeXY, posToXY, trackXY, yardXY } from './geometry';
 
 interface BoardCanvasProps {
   state: GameState;
-  onPickMove?: (move: Move) => void;
+  onPickMove: (move: Move) => void;
   width?: number;
   height?: number;
 }
@@ -18,6 +18,24 @@ const COLOR_MAP: Record<string, string> = {
 };
 
 const PIECE_RADIUS = 14;
+const PIECE_OFFSETS: { x: number; y: number }[] = [
+  { x: 0, y: 0 },
+  { x: 7, y: 0 },
+  { x: -7, y: 0 },
+  { x: 0, y: 7 },
+  { x: 0, y: -7 },
+  { x: 7, y: 7 },
+  { x: -7, y: -7 },
+  { x: 7, y: -7 },
+  { x: -7, y: 7 },
+];
+
+type PieceDraw = {
+  piece: Piece;
+  moves: Move[];
+  x: number;
+  y: number;
+};
 
 function drawCircle(
   ctx: CanvasRenderingContext2D,
@@ -39,14 +57,6 @@ function drawCircle(
   }
 }
 
-function findPieceById(pieces: Record<string, Piece[]>, id: string): Piece | undefined {
-  for (const arr of Object.values(pieces)) {
-    const found = arr.find((p) => p.id === id);
-    if (found) return found;
-  }
-  return undefined;
-}
-
 export function BoardCanvas({ state, onPickMove, width = 640, height = 640 }: BoardCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -58,6 +68,58 @@ export function BoardCanvas({ state, onPickMove, width = 640, height = 640 }: Bo
     }, {});
     return entries;
   }, [state.legalMoves]);
+
+  const pieceDraws = useMemo(() => {
+    const groups = new Map<
+      string,
+      { base: { x: number; y: number }; items: { piece: Piece; moves: Move[] }[] }
+    >();
+
+    for (const player of state.players) {
+      for (const piece of state.pieces[player.color]) {
+        const parsed = parseInt(piece.id.split('-')[1], 10) - 1;
+        const slot = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(3, parsed));
+        const posWithColor = {
+          ...piece.pos,
+          color: piece.color,
+          slot,
+        } as Piece['pos'] & {
+          color: typeof player.color;
+          slot: number;
+        };
+        const base = posToXY(posWithColor, width, height);
+        const keyParts =
+          piece.pos.kind === 'track'
+            ? ['track', piece.pos.index]
+            : piece.pos.kind === 'home'
+              ? ['home', piece.color, piece.pos.index]
+              : ['yard', piece.color];
+        const key = keyParts.join(':');
+        const entry = groups.get(key);
+        if (entry) {
+          entry.items.push({ piece, moves: legalByPiece[piece.id] ?? [] });
+        } else {
+          groups.set(key, {
+            base,
+            items: [{ piece, moves: legalByPiece[piece.id] ?? [] }],
+          });
+        }
+      }
+    }
+
+    const draws: PieceDraw[] = [];
+    for (const { base, items } of groups.values()) {
+      items.forEach((item, index) => {
+        const offset = PIECE_OFFSETS[index % PIECE_OFFSETS.length];
+        draws.push({
+          ...item,
+          x: base.x + offset.x,
+          y: base.y + offset.y,
+        });
+      });
+    }
+    return draws;
+  }, [height, legalByPiece, state.pieces, state.players, width]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -93,23 +155,22 @@ export function BoardCanvas({ state, onPickMove, width = 640, height = 640 }: Bo
     }
 
     // Pieces
-    for (const player of state.players) {
-      for (const piece of state.pieces[player.color]) {
-        const parsed = parseInt(piece.id.split('-')[1], 10) - 1;
-        const slot = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(3, parsed));
-        const posWithColor = { ...piece.pos, color: piece.color, slot } as Piece['pos'] & {
-          color: typeof player.color;
-          slot: number;
-        };
-        const { x, y } = posToXY(posWithColor, canvas.width, canvas.height);
-        const highlight = legalByPiece[piece.id]?.length ? '#0ea5e9' : undefined;
-        drawCircle(ctx, x, y, PIECE_RADIUS, COLOR_MAP[piece.color], highlight, highlight ? 3 : 2);
-      }
+    for (const draw of pieceDraws) {
+      const highlight = draw.moves.length ? '#0ea5e9' : undefined;
+      drawCircle(
+        ctx,
+        draw.x,
+        draw.y,
+        PIECE_RADIUS,
+        COLOR_MAP[draw.piece.color],
+        highlight,
+        highlight ? 3 : 2,
+      );
     }
-  }, [height, legalByPiece, state.pieces, state.players, width]);
+  }, [height, pieceDraws, width]);
 
   const handleClick: React.MouseEventHandler<HTMLCanvasElement> = (event) => {
-    if (!onPickMove || state.phase !== 'WAIT_MOVE' || state.legalMoves.length === 0) return;
+    if (state.phase !== 'WAIT_MOVE' || state.legalMoves.length === 0) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -119,23 +180,11 @@ export function BoardCanvas({ state, onPickMove, width = 640, height = 640 }: Bo
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
 
-    const piecesWithMoves = Object.keys(legalByPiece).map((id) => {
-      const piece = findPieceById(state.pieces, id);
-      return piece ? { piece, moves: legalByPiece[id] } : null;
-    }).filter(Boolean) as { piece: Piece; moves: Move[] }[];
-
-    for (const { piece, moves } of piecesWithMoves) {
-      const parsed = parseInt(piece.id.split('-')[1], 10) - 1;
-      const slot = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(3, parsed));
-      const posWithColor = { ...piece.pos, color: piece.color, slot } as Piece['pos'] & {
-        color: typeof piece.color;
-        slot: number;
-      };
-      const { x: px, y: py } = posToXY(posWithColor, canvas.width, canvas.height);
-      const dist = Math.hypot(px - x, py - y);
+    for (const draw of pieceDraws) {
+      const dist = Math.hypot(draw.x - x, draw.y - y);
       if (dist <= PIECE_RADIUS + 2) {
-        const captureMove = moves.find((m) => m.capture);
-        onPickMove(captureMove ?? moves[0]);
+        const captureMove = draw.moves.find((m) => m.capture);
+        onPickMove(captureMove ?? draw.moves[0]);
         return;
       }
     }
